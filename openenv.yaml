@@ -1,0 +1,145 @@
+name: email-ops-env
+version: "2.0.0"
+description: >
+  Intelligent Email Operations Center — a real-world agentic environment
+  where an AI agent manages a dynamic business inbox with SLA timers,
+  policy constraints, tool use (CRM/ticket lookup), multi-label routing,
+  adversarial noise, and chain-of-thought workflows. The agent must extract
+  intent, query context tools, apply business policies, and act under time
+  pressure across 4 scenario types: startup support, HR, healthcare admin,
+  and university admissions.
+
+author: OpenEnv Submission
+tags:
+  - email
+  - agentic
+  - tool-use
+  - chain-of-thought
+  - sla
+  - routing
+  - real-world
+  - dynamic
+
+observation_space:
+  type: object
+  description: Full inbox state with SLA timers, tool results, and policy context
+  fields:
+    inbox:
+      type: array
+      description: Active emails with SLA countdown, priority score, and metadata
+    processed:
+      type: array
+      description: Completed emails with agent actions and scores
+    current_email:
+      type: object
+      description: Email currently being worked on (null if none selected)
+    tool_results:
+      type: object
+      description: Results from last tool call (CRM, tickets, orders)
+    step_count:
+      type: integer
+    inbox_size:
+      type: integer
+    sla_breached:
+      type: array
+      description: Email IDs whose SLA has already been breached
+    pending_arrivals:
+      type: integer
+      description: Number of emails yet to arrive this episode
+    scenario:
+      type: string
+      description: Active scenario type (startup/hr/healthcare/university)
+    done:
+      type: boolean
+
+action_space:
+  type: object
+  description: Chain-of-thought actions — extract, query tools, then act
+  fields:
+    action_type:
+      type: string
+      enum:
+        - select_email
+        - extract_intent
+        - lookup_customer
+        - lookup_ticket
+        - lookup_order
+        - reply
+        - escalate
+        - route
+        - schedule_followup
+        - request_clarification
+        - archive
+        - flag_policy_violation
+        - delete
+    email_id:
+      type: string
+    intent:
+      type: string
+      description: Extracted intent (for extract_intent action)
+    urgency:
+      type: string
+      enum: [critical, high, medium, low]
+    entities:
+      type: array
+      description: Extracted entity references (customer IDs, order IDs, etc.)
+    lookup_id:
+      type: string
+      description: ID to query in CRM/ticket/order system
+    route_to:
+      type: string
+      enum: [support, billing, legal, engineering, sales, hr, compliance, executive]
+    reply_text:
+      type: string
+    reason:
+      type: string
+    followup_hours:
+      type: integer
+
+reward:
+  type: float
+  range: [-1.0, 1.0]
+  description: >
+    5-signal per-step reward:
+    routing_accuracy (+0.20), sla_speed (decays -0.05/step breached),
+    reply_quality (LLM-judged 0.0-0.30), policy_compliance (-0.30 violation),
+    tool_use_relevance (+0.10 for useful lookup). Terminal bonus up to +0.40
+    for completing all emails with high accuracy.
+
+tasks:
+  - id: task_easy
+    name: Startup Support Inbox
+    difficulty: easy
+    description: >
+      8 emails from a SaaS startup support queue. Clear categories,
+      no policy constraints, no SLA pressure. Agent learns basic
+      routing and chain-of-thought workflow.
+  - id: task_medium
+    name: HR Department Inbox
+    difficulty: medium
+    description: >
+      15 emails in an HR inbox with SLA timers, dynamic new arrivals,
+      ambiguous cases, and basic policy rules. Agent must reprioritize
+      as new emails arrive mid-session.
+  - id: task_hard
+    name: Healthcare Admin + Adversarial
+    difficulty: hard
+    description: >
+      25 emails across healthcare admin with strict compliance policies,
+      adversarial noise (spam, emotional manipulation, incomplete threads),
+      mandatory tool lookups, and hard SLA deadlines. Policy violations
+      are heavily penalized.
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  validate: GET /validate
+  grade: GET /grade
+  tools: GET /tools
+
+runtime:
+  language: python
+  version: "3.11"
+  framework: fastapi
