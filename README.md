@@ -1,3 +1,4 @@
+
 # 📧 Email Operations Center — OpenEnv v2
 
 A real-world agentic AI environment where agents learn to manage a **dynamic business inbox** with SLA timers, tool use, policy constraints, adversarial noise, and chain-of-thought workflows.
@@ -183,3 +184,16 @@ email-ops-env/
 
 ## License
 MIT
+=======
+---
+title: Email Ops Env
+emoji: 🐢
+colorFrom: indigo
+colorTo: yellow
+sdk: docker
+pinned: false
+short_description: Meta OpenEnv Hackathon
+---
+
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+
