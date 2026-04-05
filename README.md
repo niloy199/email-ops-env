@@ -1,4 +1,26 @@
+---
+title: Email Ops Agent
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+sdk_version: "3.10"
+app_file: main.py
+pinned: false
+---
 
+# Email Operations Agent
+
+This project runs an AI-powered email operations system using LLM-based decision making.
+
+## Features
+- Intent extraction
+- Email routing
+- Automated replies
+- Escalation handling
+
+## Usage
+Run the app using Hugging Face Spaces.
 # 📧 Email Operations Center — OpenEnv v2
 
 A real-world agentic AI environment where agents learn to manage a **dynamic business inbox** with SLA timers, tool use, policy constraints, adversarial noise, and chain-of-thought workflows.
