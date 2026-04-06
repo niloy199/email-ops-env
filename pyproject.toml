@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "main:app"
+server = "server.app:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -24,4 +24,4 @@ build-backend = "setuptools.backends.legacy:build"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["env*", "graders*", "scenarios*", "tools*"]
+include = ["env*", "graders*", "scenarios*", "tools*", "server*"]
