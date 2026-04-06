@@ -1,0 +1,9 @@
+[project]
+name = "email-ops-env"
+version = "2.0.0"
+description = "Email Operations Center OpenEnv v2"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends.legacy:build"
