@@ -265,10 +265,10 @@ def log_start(task_id: str, step_count: int):
     print(f"[START] task={task_id} steps={step_count} model={MODEL_NAME} seed={SEED}", flush=True)
 
 def log_step(step_n: int, action_type: str, reward: float, message: str):
-    print(f"[STEP] step={step_n} action={action_type} reward={round(reward, 4)}", flush=True)
+    print(f"[STEP] step={step_n} action={action_type} reward={round(reward:.2f)}", flush=True)
 
 def log_end(task_id: str, score: float, emails_processed: int, details: Dict):
-    print(f"[END] task={task_id} score={round(score, 4)} steps={emails_processed}", flush=True)
+    print(f"[END] task={task_id} score={round(score:.2f)} steps={emails_processed}", flush=True)
 
 
 # ── Main Run Loop ───────────────────────────────────────────────────────────────
@@ -380,8 +380,8 @@ def main():
         except Exception as e:
             err_msg = traceback.format_exc()
             print(f"[STEP] step=0 action=error reward=0.0 note=task_error", flush=True)
-            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.0}
-            log_end(task_id, 0.0, 0, {"error": str(e)})
+            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.01}
+            log_end(task_id, 0.01, 0, {"error": str(e)})
 
     elapsed = time.time() - t0
     scores  = [r.get("final_score", 0.0) for r in results.values()]
@@ -405,7 +405,7 @@ def main():
 
     print(f"[END] task=inference score={output['average_score']} steps={sum(r.get('steps',0) for r in results.values())}", flush=True)
 
-    invalid = [(t, s) for t, s in output["scores"].items() if not (0.0 <= s <= 1.0)]
+    invalid = [(t, s) for t, s in output["scores"].items() if not (0.0 < s < 1.0)]
     if invalid:
         print(f"[END] task=inference score=0.0 steps=0 error=out_of_range_scores", flush=True)
         sys.exit(1)
