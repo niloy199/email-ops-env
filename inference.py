@@ -8,16 +8,13 @@ import os, sys, json, time, traceback, requests
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
-from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env.txt")
-
 # ── Environment variables ──────────────────────────────────────────────────────
 # API_BASE_URL and MODEL_NAME have defaults. HF_TOKEN must NOT have a default.
 
 API_BASE_URL     = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME       = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.1-8B-Instruct")
 HF_TOKEN         = os.getenv("HF_TOKEN")
-
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")   # optional — used with from_docker_image()
 
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
 SEED         = 2024
@@ -262,34 +259,16 @@ def rule_agent(obs: Dict) -> Dict:
     return {"action_type": "archive"}
 
 
-# ── Structured logging (START / STEP / END format) ────────────────────────────
+# ── Structured logging ([START] / [STEP] / [END] format) ─────────────────────
 
 def log_start(task_id: str, step_count: int):
-    print(json.dumps({
-        "type":    "START",
-        "task_id": task_id,
-        "steps":   step_count,
-        "model":   MODEL_NAME,
-        "seed":    SEED,
-    }), flush=True)
+    print(f"[START] task={task_id} steps={step_count} model={MODEL_NAME} seed={SEED}", flush=True)
 
 def log_step(step_n: int, action_type: str, reward: float, message: str):
-    print(json.dumps({
-        "type":        "STEP",
-        "step":        step_n,
-        "action":      action_type,
-        "reward":      round(reward, 4),
-        "message":     message[:80],
-    }), flush=True)
+    print(f"[STEP] step={step_n} action={action_type} reward={round(reward, 4)}", flush=True)
 
 def log_end(task_id: str, score: float, emails_processed: int, details: Dict):
-    print(json.dumps({
-        "type":             "END",
-        "task_id":          task_id,
-        "score":            round(score, 4),
-        "emails_processed": emails_processed,
-        "details":          details,
-    }), flush=True)
+    print(f"[END] task={task_id} score={round(score, 4)} steps={emails_processed}", flush=True)
 
 
 # ── Main Run Loop ───────────────────────────────────────────────────────────────
@@ -333,19 +312,12 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
                 # Detect credit exhaustion — switch to rule-based permanently
                 if "402" in err or "depleted" in err or "credits" in err:
                     llm_disabled = True
-                    print(json.dumps({
-                        "type": "STEP", "step": step_n + 1,
-                        "warning": "LLM credits exhausted — switching to rule-based agent for remaining steps"
-                    }), flush=True)
+                    print(f"[STEP] step={step_n+1} action=fallback reward=0.0 note=llm_credits_exhausted", flush=True)
                 elif consecutive_llm_fails >= 3:
                     llm_disabled = True
-                    print(json.dumps({
-                        "type": "STEP", "step": step_n + 1,
-                        "warning": f"LLM failed 3 times in a row — switching to rule-based agent"
-                    }), flush=True)
+                    print(f"[STEP] step={step_n+1} action=fallback reward=0.0 note=llm_failed_3x", flush=True)
                 else:
-                    print(json.dumps({"type": "STEP", "step": step_n + 1,
-                                      "warning": f"LLM error (using fallback): {err}"}), flush=True)
+                    print(f"[STEP] step={step_n+1} action=fallback reward=0.0 note=llm_error", flush=True)
 
         if not action:
             action = rule_agent(obs)
@@ -353,8 +325,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
         try:
             result = env_step(action)
         except Exception as ex:
-            print(json.dumps({"type": "STEP", "step": step_n + 1,
-                              "error": f"Step error: {str(ex)[:100]}"}), flush=True)
+            print(f"[STEP] step={step_n+1} action=error reward=0.0 note=step_failed", flush=True)
             break
 
         rv  = result["reward"]["value"]
@@ -388,28 +359,19 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
 def main():
     t0 = time.time()
 
-    print(json.dumps({
-        "type":        "START",
-        "event":       "inference_begin",
-        "api_base":    API_BASE_URL,
-        "model":       MODEL_NAME,
-        "hf_token_set": HF_TOKEN is not None,
-        "env_url":     ENV_BASE_URL,
-        "seed":        SEED,
-    }), flush=True)
+    print(f"[START] task=inference model={MODEL_NAME} seed={SEED}", flush=True)
 
     # Health check
     try:
         r = requests.get(f"{ENV_BASE_URL}/health", timeout=10)
         r.raise_for_status()
     except Exception as e:
-        print(json.dumps({"type": "END", "error": f"Env not reachable: {str(e)}"}), flush=True)
+        print(f"[END] task=inference score=0.0 steps=0 error=env_not_reachable", flush=True)
         sys.exit(1)
 
     use_llm = HF_TOKEN is not None
     if not use_llm:
-        print(json.dumps({"type": "STEP", "step": 0,
-                          "warning": "HF_TOKEN not set — using rule-based fallback"}), flush=True)
+        print("[STEP] step=0 action=fallback reward=0.0 note=rule_based_agent", flush=True)
 
     results = {}
     for task_id in TASKS:
@@ -417,7 +379,7 @@ def main():
             results[task_id] = run_task(task_id, use_llm)
         except Exception as e:
             err_msg = traceback.format_exc()
-            print(json.dumps({"type": "STEP", "step": 0, "error": str(e)[:200]}), flush=True)
+            print(f"[STEP] step=0 action=error reward=0.0 note=task_error", flush=True)
             results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.0}
             log_end(task_id, 0.0, 0, {"error": str(e)})
 
@@ -441,17 +403,11 @@ def main():
     with open("baseline_results.json", "w") as f:
         json.dump(output, f, indent=2)
 
-    print(json.dumps({
-        "type":           "END",
-        "event":          "inference_complete",
-        "scores":         output["scores"],
-        "average_score":  output["average_score"],
-        "runtime_seconds": output["runtime_seconds"],
-    }), flush=True)
+    print(f"[END] task=inference score={output['average_score']} steps={sum(r.get('steps',0) for r in results.values())}", flush=True)
 
     invalid = [(t, s) for t, s in output["scores"].items() if not (0.0 <= s <= 1.0)]
     if invalid:
-        print(json.dumps({"type": "END", "error": f"Out-of-range scores: {invalid}"}), flush=True)
+        print(f"[END] task=inference score=0.0 steps=0 error=out_of_range_scores", flush=True)
         sys.exit(1)
 
     return output
