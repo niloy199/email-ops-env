@@ -12,10 +12,9 @@ from env.models import (
 MIN_SCORE = 0.001
 MAX_SCORE = 0.999
 
-
 def clamp(score: float) -> float:
-    """Clamp score to strictly open interval (0, 1)."""
-    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 4)
+    """Clamp all grader outputs to strict open interval (0, 1)."""
+    return max(MIN_SCORE, min(MAX_SCORE, score))
 
 
 class BaseGrader:
