@@ -83,7 +83,7 @@ class BaseGrader:
         if not kws:
             return 0.5
         matched = sum(1 for kw in kws if kw.lower() in e.agent_reply.lower())
-        score = max(0.05, matched / len(kws))
+        score = max(0.05, min(0.99, matched / len(kws)))
         return round(score, 4)
 
     def _adversarial_score(self, e: Email) -> float:
