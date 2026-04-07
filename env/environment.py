@@ -105,7 +105,7 @@ class EmailOpsEnv:
         if self._done:
             return StepResponse(
                 observation=self.state(),
-                reward=Reward(value=0.0, message="Episode done"),
+                reward=Reward(value=0.01, message="Episode done"),
                 done=True, info={"error": "episode_done"},
             )
         self._step += 1
@@ -117,7 +117,7 @@ class EmailOpsEnv:
         if not self._inbox and self._current is None:
             self._done = True
             bonus = self._completion_bonus()
-            reward.value = min(1.0, reward.value + bonus)
+            reward.value = min(0.99, reward.value + bonus)
             reward.breakdown["completion_bonus"] = bonus
             reward.message += f" | Complete! Bonus +{bonus:.2f}"
 
@@ -351,7 +351,7 @@ class EmailOpsEnv:
 
         email.agent_route = action.route_to
         self._finalize(email, ActionType.ROUTE)
-        score = max(-1.0, min(1.0, total))
+        score = max(-0.99, min(0.99, total))
         return Reward(value=round(score, 4), message=msg, breakdown=breakdown), info
 
     def _schedule(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
@@ -422,7 +422,7 @@ class EmailOpsEnv:
             1 for e in self._processed
             if not (PolicyRule.NO_AUTO_REPLY in e.policy_rules and e.agent_action == ActionType.REPLY)
         ) / n
-        coverage = min(1.0, n / len(self._all_emails))
+        coverage = min(0.99, n / len(self._all_emails))
         bonus = R_COMPLETION_BONUS * (
             correct_route   * 0.35 +
             tool_compliance * 0.25 +

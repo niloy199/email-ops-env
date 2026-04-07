@@ -385,7 +385,7 @@ def main():
 
     elapsed = time.time() - t0
     scores  = [r.get("final_score", 0.0) for r in results.values()]
-    avg     = sum(scores) / len(scores)
+    avg     = max(0.01, min(0.99, sum(scores) / len(scores)))
 
     output = {
         "run_config": {

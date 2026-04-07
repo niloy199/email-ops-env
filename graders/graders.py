@@ -155,7 +155,7 @@ class MediumTaskGrader(BaseGrader):
             1 for e in critical
             if e.agent_action in (ActionType.ESCALATE, ActionType.ROUTE, ActionType.FLAG_POLICY_VIOLATION)
         ) / max(1, len(critical))
-        critical_score = max(0.05, critical_score)
+        critical_score = max(0.05, min(0.99, critical_score))
 
         policy_emails = [e for e in processed if e.policy_rules]
         policy_compliance = sum(
@@ -222,7 +222,7 @@ class HardTaskGrader(BaseGrader):
             1 for e in processed
             if e.agent_intent is not None and e.agent_route is not None
         ) / max(1, len(processed))
-        cot_score = max(0.05, cot_score)
+        cot_score = max(0.05, min(0.99, cot_score))
 
         policy_emails = [e for e in processed if e.policy_rules]
         policy_compliance = sum(

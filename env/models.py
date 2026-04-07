@@ -134,7 +134,7 @@ class Action(BaseModel):
 
 
 class Reward(BaseModel):
-    value: float = Field(ge=-1.0, le=1.0)
+    value: float = Field(ge=-0.99, le=0.99)
     breakdown: Dict[str, float] = Field(default_factory=dict)
     message: str = ""
 
