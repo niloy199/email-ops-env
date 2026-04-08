@@ -8,6 +8,8 @@ import os, sys, json, time, traceback, requests
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
+import math
+
 # ── Environment variables ──────────────────────────────────────────────────────
 # API_BASE_URL and MODEL_NAME have defaults. HF_TOKEN must NOT have a default.
 
@@ -339,8 +341,16 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
             break
 
     grade  = env_grade()
-    score  = grade["score"]
+    #score  = grade["score"]
     details = grade.get("details", {})
+    raw_score = grade.get("score", None)
+    
+    if not isinstance(raw_score, (int, float)) or not math.isfinite(raw_score):
+       # handle invalid grader output
+       # e.g., fallback + log
+       score = 0.01
+    else:
+       score = max(0.01, min(0.99, float(raw_score)))
 
     log_end(task_id, score, grade.get("emails_processed", 0), details)
 

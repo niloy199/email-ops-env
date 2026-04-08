@@ -9,9 +9,8 @@ from env.models import (
 )
 
 # Score must be strictly between 0 and 1 — never exactly 0.0 or 1.0
-MIN_SCORE = 0.001
-MAX_SCORE = 0.999
-
+MIN_SCORE = 0.01
+MAX_SCORE = 0.99
 
 def clamp(score: float) -> float:
     """Clamp all grader outputs to strict open interval (0, 1)."""
