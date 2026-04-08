@@ -295,6 +295,7 @@ class EmailOpsEnv:
         length = len(action.reply_text.split())
         length_bonus = 0.05 if 25 <= length <= 350 else 0.0
         score = round(kw_score * R_QUALITY_REPLY_MAX + length_bonus, 4)
+        score = max(0.01, min(0.99, score))
 
         email.agent_reply = action.reply_text
         self._finalize(email, ActionType.REPLY)
