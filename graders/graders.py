@@ -272,4 +272,14 @@ def grade_episode(task_id: str, processed: list) -> Tuple[float, Dict]:
             "error": f"Unknown task: {task_id}",
             "final_score": MIN_SCORE,
         }
-    return GRADERS[task_id].grade(processed)
+
+    score, details = GRADERS[task_id].grade(processed)
+
+    try:
+        safe_score = clamp(float(score))
+    except (TypeError, ValueError):
+        safe_score = MIN_SCORE
+
+    safe_details = details.copy() if isinstance(details, dict) else {}
+    safe_details["final_score"] = safe_score
+    return safe_score, safe_details
