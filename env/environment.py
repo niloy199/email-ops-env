@@ -112,12 +112,13 @@ class EmailOpsEnv:
         self._tick_sla()
         self._deliver_arrivals()
         reward, info = self._execute(action)
+        reward.value = max(0.01, min(0.99, float(reward.value)))
         self._cumulative_reward += reward.value
 
         if not self._inbox and self._current is None:
             self._done = True
             bonus = self._completion_bonus()
-            reward.value = min(0.99, reward.value + bonus)
+            reward.value = max(0.01, min(0.99, reward.value + bonus))
             reward.breakdown["completion_bonus"] = bonus
             reward.message += f" | Complete! Bonus +{bonus:.2f}"
 
