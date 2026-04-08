@@ -18,6 +18,9 @@ from env.environment import EmailOpsEnv
 from env.models import Action, Observation, ResetRequest, StepResponse
 from graders.graders import grade_episode
 
+MIN_SCORE = 0.01
+MAX_SCORE = 0.99
+
 app = FastAPI(
     title="Email Operations Center OpenEnv",
     description="Agentic email environment with SLA, tool use, policy constraints, and dynamic inbox.",
@@ -116,7 +119,8 @@ async def list_tools():
 @app.get("/grade")
 async def grade():
     s = env.state()
-    score, details = grade_episode(s.task_id or "task_easy", s.processed)
+    raw_score, details = grade_episode(s.task_id or "task_easy", s.processed)
+    score = max(MIN_SCORE, min(MAX_SCORE, float(raw_score)))
     return {
         "task_id": s.task_id,
         "score": score,
