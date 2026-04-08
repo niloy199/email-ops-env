@@ -21,6 +21,8 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")   # optional — used with from
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
 SEED         = 2024
 TASKS        = ["task_easy", "task_medium", "task_hard"]
+MIN_SCORE    = 0.01
+MAX_SCORE    = 0.99
 
 # ── OpenAI client (all LLM calls use this) ────────────────────────────────────
 
@@ -348,9 +350,9 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
     if not isinstance(raw_score, (int, float)) or not math.isfinite(raw_score):
        # handle invalid grader output
        # e.g., fallback + log
-       score = 0.01
+       score = MIN_SCORE
     else:
-       score = max(0.01, min(0.99, float(raw_score)))
+       score = max(MIN_SCORE, min(MAX_SCORE, float(raw_score)))
 
     log_end(task_id, score, grade.get("emails_processed", 0), details)
 
@@ -358,7 +360,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
         "task_id":          task_id,
         "final_score":      score,
         "total_reward":     round(sum(rewards), 4),
-        "avg_reward":       round(sum(rewards) / max(0.99, len(rewards)), 4),
+        "avg_reward":       round(sum(rewards) / max(MAX_SCORE, len(rewards)), 4),
         "steps":            len(rewards),
         "emails_processed": grade.get("emails_processed", 0),
         "llm_failures":     llm_fails,
@@ -390,12 +392,12 @@ def main():
         except Exception as e:
             err_msg = traceback.format_exc()
             print(f"[STEP] step=0 action=error reward=0.01 note=task_error", flush=True)
-            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.01}
-            log_end(task_id, 0.01, 0, {"error": str(e)})
+            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": MIN_SCORE}
+            log_end(task_id, MIN_SCORE, 0, {"error": str(e)})
 
     elapsed = time.time() - t0
-    scores  = [r.get("final_score", 0.01) for r in results.values()]
-    avg     = max(0.01, min(0.99, sum(scores) / len(scores)))
+    scores  = [max(MIN_SCORE, min(MAX_SCORE, float(r.get("final_score", MIN_SCORE)))) for r in results.values()]
+    avg     = max(MIN_SCORE, min(MAX_SCORE, sum(scores) / len(scores)))
 
     output = {
         "run_config": {
@@ -404,7 +406,10 @@ def main():
             "seed":     SEED,
             "use_llm":  use_llm,
         },
-        "scores":         {t: r.get("final_score", 0.01) for t, r in results.items()},
+        "scores":         {
+            t: max(MIN_SCORE, min(MAX_SCORE, float(r.get("final_score", MIN_SCORE))))
+            for t, r in results.items()
+        },
         "average_score":  round(avg, 4),
         "runtime_seconds": round(elapsed, 1),
         "task_details":   results,
