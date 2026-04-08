@@ -312,12 +312,12 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
                 # Detect credit exhaustion — switch to rule-based permanently
                 if "402" in err or "depleted" in err or "credits" in err:
                     llm_disabled = True
-                    print(f"[STEP] step={step_n+1} action=fallback reward=0.0 note=llm_credits_exhausted", flush=True)
+                    print(f"[STEP] step={step_n+1} action=fallback reward=0.01 note=llm_credits_exhausted", flush=True)
                 elif consecutive_llm_fails >= 3:
                     llm_disabled = True
-                    print(f"[STEP] step={step_n+1} action=fallback reward=0.0 note=llm_failed_3x", flush=True)
+                    print(f"[STEP] step={step_n+1} action=fallback reward=0.01 note=llm_failed_3x", flush=True)
                 else:
-                    print(f"[STEP] step={step_n+1} action=fallback reward=0.0 note=llm_error", flush=True)
+                    print(f"[STEP] step={step_n+1} action=fallback reward=0.01 note=llm_error", flush=True)
 
         if not action:
             action = rule_agent(obs)
@@ -325,7 +325,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
         try:
             result = env_step(action)
         except Exception as ex:
-            print(f"[STEP] step={step_n+1} action=error reward=0.0 note=step_failed", flush=True)
+            print(f"[STEP] step={step_n+1} action=error reward=0.01 note=step_failed", flush=True)
             break
 
         rv  = result["reward"]["value"]
@@ -348,7 +348,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
         "task_id":          task_id,
         "final_score":      score,
         "total_reward":     round(sum(rewards), 4),
-        "avg_reward":       round(sum(rewards) / max(1, len(rewards)), 4),
+        "avg_reward":       round(sum(rewards) / max(0.99, len(rewards)), 4),
         "steps":            len(rewards),
         "emails_processed": grade.get("emails_processed", 0),
         "llm_failures":     llm_fails,
@@ -366,12 +366,12 @@ def main():
         r = requests.get(f"{ENV_BASE_URL}/health", timeout=10)
         r.raise_for_status()
     except Exception as e:
-        print(f"[END] task=inference score=0.0 steps=0 error=env_not_reachable", flush=True)
+        print(f"[END] task=inference score=0.01 steps=0 error=env_not_reachable", flush=True)
         sys.exit(1)
 
     use_llm = HF_TOKEN is not None
     if not use_llm:
-        print("[STEP] step=0 action=fallback reward=0.0 note=rule_based_agent", flush=True)
+        print("[STEP] step=0 action=fallback reward=0.01 note=rule_based_agent", flush=True)
 
     results = {}
     for task_id in TASKS:
@@ -379,12 +379,12 @@ def main():
             results[task_id] = run_task(task_id, use_llm)
         except Exception as e:
             err_msg = traceback.format_exc()
-            print(f"[STEP] step=0 action=error reward=0.0 note=task_error", flush=True)
+            print(f"[STEP] step=0 action=error reward=0.01 note=task_error", flush=True)
             results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.01}
             log_end(task_id, 0.01, 0, {"error": str(e)})
 
     elapsed = time.time() - t0
-    scores  = [r.get("final_score", 0.0) for r in results.values()]
+    scores  = [r.get("final_score", 0.01) for r in results.values()]
     avg     = max(0.01, min(0.99, sum(scores) / len(scores)))
 
     output = {
@@ -394,7 +394,7 @@ def main():
             "seed":     SEED,
             "use_llm":  use_llm,
         },
-        "scores":         {t: r.get("final_score", 0.0) for t, r in results.items()},
+        "scores":         {t: r.get("final_score", 0.01) for t, r in results.items()},
         "average_score":  round(avg, 4),
         "runtime_seconds": round(elapsed, 1),
         "task_details":   results,
