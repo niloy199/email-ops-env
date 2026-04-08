@@ -2,6 +2,7 @@
 FastAPI server — Email Operations Center OpenEnv v2
 """
 from __future__ import annotations
+import math
 import os
 import sys
 
@@ -16,7 +17,7 @@ import yaml
 
 from env.environment import EmailOpsEnv
 from env.models import Action, Observation, ResetRequest, StepResponse
-from graders.graders import grade_episode
+from graders.graders import MIN_SCORE, MAX_SCORE, grade_episode
 
 app = FastAPI(
     title="Email Operations Center OpenEnv",
@@ -26,6 +27,19 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 env = EmailOpsEnv()
+
+def _strict_score(score: float) -> float:
+    """Keep all externally reported scores in open interval (0, 1)."""
+    try:
+        numeric = float(score)
+    except (TypeError, ValueError):
+        return MIN_SCORE
+
+    if not math.isfinite(numeric):
+        return MIN_SCORE
+
+    return max(MIN_SCORE, min(MAX_SCORE, numeric))
+
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -117,12 +131,15 @@ async def list_tools():
 async def grade():
     s = env.state()
     score, details = grade_episode(s.task_id or "task_easy", s.processed)
+    safe_score = _strict_score(score)
+    safe_details = details.copy() if isinstance(details, dict) else {}
+    safe_details["final_score"] = _strict_score(safe_details.get("final_score", safe_score))
     return {
         "task_id": s.task_id,
-        "score": score,
+        "score": safe_score,
         "done": s.done,
         "emails_processed": len(s.processed),
-        "details": details,
+        "details": safe_details,
     }
 
 
@@ -157,7 +174,7 @@ async def validate():
         try:
             env.reset(task_id=tid, seed=42)
             score, _ = grade_episode(tid, [])
-            grader_results[tid] = {"ok": True, "empty_score": score}
+            grader_results[tid] = {"ok": True, "empty_score": _strict_score(score)}
         except Exception as e:
             grader_results[tid] = {"ok": False, "error": str(e)}
     results["graders"] = grader_results
