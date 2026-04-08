@@ -268,5 +268,8 @@ GRADERS = {
 
 def grade_episode(task_id: str, processed: list) -> Tuple[float, Dict]:
     if task_id not in GRADERS:
-        return MIN_SCORE, {"error": f"Unknown task: {task_id}"}
+        return MIN_SCORE, {
+            "error": f"Unknown task: {task_id}",
+            "final_score": MIN_SCORE,
+        }
     return GRADERS[task_id].grade(processed)
