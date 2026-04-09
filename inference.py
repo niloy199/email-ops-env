@@ -16,7 +16,7 @@ MODEL_NAME       = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.1-8B-Instruct")
 HF_TOKEN         = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")   # optional — used with from_docker_image()
 
-ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
+ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://niloy456-email-ops-env.hf.space")
 SEED         = 2024
 TASKS        = ["task_easy", "task_medium", "task_hard"]
 
@@ -383,8 +383,8 @@ def main():
         except Exception as e:
             err_msg = traceback.format_exc()
             print(f"[STEP] step=0 action=error reward=0.01 note=task_error", flush=True)
-            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.0}
-            log_end(task_id, 0.0, 0, {"error": str(e)})
+            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.01}
+            log_end(task_id, 0.01, 0, {"error": str(e)})
 
     elapsed = time.time() - t0
     scores  = [r.get("final_score", 0.01) for r in results.values()]
