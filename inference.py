@@ -27,6 +27,9 @@ client = OpenAI(
     base_url=API_BASE_URL,
 )
 
+MAX_SCORE=0.99
+MIN_SCORE=0.01
+
 # ── Env Client ─────────────────────────────────────────────────────────────────
 
 def env_reset(task_id, seed=SEED):
