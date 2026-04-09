@@ -119,7 +119,7 @@ async def grade():
     s = env.state()
     task_id = s.task_id or "task_easy"
     raw_score, details = grade_episode(task_id, s.processed)
-    score = max(0.01, min(0.99, raw_score))
+    score = round(max(0.01, min(0.99, raw_score)), 2)
     return {
         "task_id": task_id,
         "score":   round(score, 2),
@@ -176,7 +176,7 @@ async def grade_by_task(task_id: str):
     else:
         raw_score, details = grade_episode(task_id, s.processed)
 
-    score = max(0.01, min(0.99, raw_score))
+    score = round(max(0.01, min(0.99, raw_score)), 2)
     return {
         "task_id": task_id,
         "score":   round(score, 2),

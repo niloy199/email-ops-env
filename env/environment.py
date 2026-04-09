@@ -112,13 +112,12 @@ class EmailOpsEnv:
         self._tick_sla()
         self._deliver_arrivals()
         reward, info = self._execute(action)
-        reward.value = max(0.01, min(0.99, float(reward.value)))
         self._cumulative_reward += reward.value
 
         if not self._inbox and self._current is None:
             self._done = True
             bonus = self._completion_bonus()
-            reward.value = max(0.01, min(0.99, reward.value + bonus))
+            reward.value = min(0.99, reward.value + bonus)
             reward.breakdown["completion_bonus"] = bonus
             reward.message += f" | Complete! Bonus +{bonus:.2f}"
 
@@ -296,7 +295,6 @@ class EmailOpsEnv:
         length = len(action.reply_text.split())
         length_bonus = 0.05 if 25 <= length <= 350 else 0.0
         score = round(kw_score * R_QUALITY_REPLY_MAX + length_bonus, 4)
-        score = max(0.01, min(0.99, score))
 
         email.agent_reply = action.reply_text
         self._finalize(email, ActionType.REPLY)
@@ -413,18 +411,18 @@ class EmailOpsEnv:
 
     def _completion_bonus(self) -> float:
         if not self._processed:
-            return 0.0
+            return 0.01
         n = len(self._processed)
-        correct_route   = sum(1 for e in self._processed if e.agent_route == e.true_route) / n
-        tool_compliance = sum(
+        correct_route   = max(0.01, min(0.99, sum(1 for e in self._processed if e.agent_route == e.true_route) / n))
+        tool_compliance = max(0.01, min(0.99, sum(
             1 for e in self._processed
             if e.requires_tool == e.tool_was_called
-        ) / n
+        ) / n))
         no_policy_viol  = sum(
             1 for e in self._processed
             if not (PolicyRule.NO_AUTO_REPLY in e.policy_rules and e.agent_action == ActionType.REPLY)
         ) / n
-        coverage = min(0.99, n / len(self._all_emails))
+        coverage = max(0.01, min(0.99, n / len(self._all_emails)))
         bonus = R_COMPLETION_BONUS * (
             correct_route   * 0.35 +
             tool_compliance * 0.25 +
