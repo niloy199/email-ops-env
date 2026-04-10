@@ -58,6 +58,10 @@ async def root():
     <p><span class="badge">hard</span> task_hard — Healthcare admin, 25 emails, adversarial + HIPAA</p>
     <p><a href="/docs">📖 Swagger UI</a></p></body></html>"""
 
+MIN_SCORE = 0.01
+MAX_SCORE = 0.99
+
+
 def clamp(score: float) -> float:
     """Clamp score to strictly open interval (0, 1)."""
     return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
@@ -137,7 +141,6 @@ async def grade():
 @app.get("/grade/{task_id}")
 async def grade_by_task(task_id: str):
     """Grade a specific task — validator calls GET /grade/{task_id}."""
-    # Normalise task ID — support task_1/task_2/task_3 and task_easy/medium/hard
     aliases = {
         "task_1": "task_easy",  "1": "task_easy",
         "task_2": "task_medium","2": "task_medium",
@@ -145,7 +148,6 @@ async def grade_by_task(task_id: str):
     }
     task_id = aliases.get(task_id, task_id)
 
-    # Run a fresh isolated episode with the rule-based agent
     from env.environment import EmailOpsEnv
     from env.models import Action, ActionType, RouteDept, Urgency
 
@@ -160,19 +162,16 @@ async def grade_by_task(task_id: str):
             inbox = _obs.inbox
             if not inbox:
                 break
-            # Pick most urgent by SLA
             best = sorted(inbox, key=lambda e: e.sla_remaining)[0]
             act = Action(action_type=ActionType.SELECT_EMAIL, email_id=best.id)
         else:
             if cur.agent_intent is None:
-                # Extract intent based on true values for best score
                 act = Action(
                     action_type=ActionType.EXTRACT_INTENT,
                     intent=cur.true_intent or "general_inquiry",
                     urgency=cur.true_urgency or Urgency.MEDIUM,
                 )
             elif cur.tool_was_called is False and cur.requires_tool:
-                # Call the right tool
                 tool_map = {
                     "lookup_customer": ActionType.LOOKUP_CUSTOMER,
                     "lookup_ticket":   ActionType.LOOKUP_TICKET,
@@ -181,7 +180,6 @@ async def grade_by_task(task_id: str):
                 tool_action = tool_map.get(cur.required_tool, ActionType.LOOKUP_CUSTOMER)
                 act = Action(action_type=tool_action, lookup_id="C-1001")
             else:
-                # Route to correct department
                 act = Action(
                     action_type=ActionType.ROUTE,
                     route_to=cur.true_route or RouteDept.SUPPORT,
