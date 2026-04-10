@@ -60,6 +60,9 @@ R_CLARIFICATION_OK   = 0.08
 R_COMPLETION_BONUS   = 0.40
 
 
+MIN_SCORE    = 0.01
+MAX_SCORE    = 0.99
+
 def clamp(score: float) -> float:
     """Clamp score to strictly open interval (0, 1)."""
     return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
@@ -106,12 +109,8 @@ class EmailOpsEnv:
         self._cumulative_reward = 0.01
         return self.state()
     
-    MIN_SCORE    = 0.01
-    MAX_SCORE    = 0.99
 
-    def clamp(score: float) -> float:
-        """Clamp score to strictly open interval (0, 1)."""
-        return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
 
     def step(self, action: Action) -> StepResponse:
         if self._done:
