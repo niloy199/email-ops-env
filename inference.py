@@ -19,16 +19,22 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")   # optional — used with from
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://niloy456-email-ops-env.hf.space")
 SEED         = 2024
 TASKS        = ["task_easy", "task_medium", "task_hard"]
+MIN_SCORE    = 0.01
+MAX_SCORE    = 0.99
 
 # ── OpenAI client (all LLM calls use this) ────────────────────────────────────
+# Only initialised when HF_TOKEN is set — avoids connection errors when no token
 
-client = OpenAI(
-    api_key=HF_TOKEN or "sk-placeholder",
-    base_url=API_BASE_URL,
-)
+def _make_client():
+    """Create OpenAI client only if token is available."""
+    if not HF_TOKEN:
+        return None
+    try:
+        return OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
+    except Exception:
+        return None
 
-MAX_SCORE=0.99
-MIN_SCORE=0.01
+client = _make_client()
 
 # ── Env Client ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +136,8 @@ def format_obs(obs: Dict) -> str:
 
 def call_llm(messages: List[Dict]) -> str:
     """All LLM calls use the OpenAI client configured via environment variables."""
+    if client is None:
+        raise RuntimeError("No LLM client available — HF_TOKEN not set")
     resp = client.chat.completions.create(
         model=MODEL_NAME,
         messages=messages,
@@ -276,6 +284,10 @@ def log_end(task_id: str, score: float, emails_processed: int, details: Dict):
 
 # ── Main Run Loop ───────────────────────────────────────────────────────────────
 
+def clamp(score: float) -> float:
+    """Clamp score to strictly open interval (0, 1)."""
+    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
 def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
     max_steps = {"task_easy": 60, "task_medium": 150, "task_hard": 300}[task_id]
 
@@ -297,7 +309,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
         action   = None
         obs_text = format_obs(obs)
 
-        if use_llm and HF_TOKEN and not llm_disabled:
+        if use_llm and HF_TOKEN and client is not None and not llm_disabled:
             try:
                 messages.append({"role": "user", "content": obs_text})
                 out    = call_llm(messages)
@@ -331,7 +343,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
             print(f"[STEP] step={step_n+1} action=error reward=0.01 note=step_failed", flush=True)
             break
 
-        rv  = result["reward"]["value"]
+        rv  = clamp(result["reward"]["value"])
         msg = result["reward"].get("message", "")
         rewards.append(rv)
         obs = result["observation"]
@@ -350,8 +362,8 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
     return {
         "task_id":          task_id,
         "final_score":      score,
-        "total_reward":     round(sum(rewards), 4),
-        "avg_reward":       round(sum(rewards) / max(1, len(rewards)), 4),
+        "total_reward":     clamp(round(sum(rewards), 1)),
+        "avg_reward":       clamp(round(sum(rewards) / max(1, len(rewards)), 2)),
         "steps":            len(rewards),
         "emails_processed": grade.get("emails_processed", 0),
         "llm_failures":     llm_fails,
@@ -372,7 +384,7 @@ def main():
         print(f"[END] task=inference score=0.01 steps=0 error=env_not_reachable", flush=True)
         sys.exit(1)
 
-    use_llm = HF_TOKEN is not None
+    use_llm = HF_TOKEN is not None and client is not None
     if not use_llm:
         print("[STEP] step=0 action=fallback reward=0.01 note=rule_based_agent", flush=True)
 
@@ -383,11 +395,11 @@ def main():
         except Exception as e:
             err_msg = traceback.format_exc()
             print(f"[STEP] step=0 action=error reward=0.01 note=task_error", flush=True)
-            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": 0.01}
-            log_end(task_id, 0.01, 0, {"error": str(e)})
+            results[task_id] = {"task_id": task_id, "error": str(e), "final_score": MIN_SCORE}
+            log_end(task_id, MIN_SCORE, 0, {"error": str(e)})
 
     elapsed = time.time() - t0
-    scores  = [r.get("final_score", 0.01) for r in results.values()]
+    scores  = [max(MIN_SCORE, min(MAX_SCORE, float(r.get("final_score", MIN_SCORE)))) for r in results.values()]
     avg     = round(max(0.01, min(0.99, sum(scores) / len(scores))), 2)
 
     output = {
@@ -397,8 +409,8 @@ def main():
             "seed":     SEED,
             "use_llm":  use_llm,
         },
-        "scores":         {t: r.get("final_score", 0.01) for t, r in results.items()},
-        "average_score":  round(avg, 4),
+        "scores":         {t: round(max(MIN_SCORE, min(MAX_SCORE, float(r.get("final_score", MIN_SCORE)))), 2) for t, r in results.items()},
+        "average_score": clamp(round(avg, 2)),
         "runtime_seconds": round(elapsed, 1),
         "task_details":   results,
     }
