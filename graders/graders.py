@@ -109,7 +109,7 @@ class EasyTaskGrader(BaseGrader):
         replies = [self._reply_score(e) for e in processed]
         tools = [self._tool_score(e) for e in processed]
         adversarial = [self._adversarial_score(e) for e in processed if e.is_adversarial] or [0.5]
-        coverage = min(0.999, len(processed) / 8)
+        coverage = min(0.99, len(processed) / 8)
 
         avg_routing = sum(routing) / len(routing)
         avg_reply = sum(replies) / len(replies)
@@ -155,7 +155,7 @@ class MediumTaskGrader(BaseGrader):
             1 for e in critical
             if e.agent_action in (ActionType.ESCALATE, ActionType.ROUTE, ActionType.FLAG_POLICY_VIOLATION)
         ) / max(1, len(critical))
-        critical_score = max(0.05, critical_score)
+        critical_score = clamp(max(0.05, critical_score))
 
         policy_emails = [e for e in processed if e.policy_rules]
         policy_compliance = sum(
@@ -222,7 +222,7 @@ class HardTaskGrader(BaseGrader):
             1 for e in processed
             if e.agent_intent is not None and e.agent_route is not None
         ) / max(1, len(processed))
-        cot_score = max(0.05, cot_score)
+        cot_score = clamp(max(0.05, cot_score))
 
         policy_emails = [e for e in processed if e.policy_rules]
         policy_compliance = sum(
