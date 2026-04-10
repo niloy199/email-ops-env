@@ -361,7 +361,7 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
 
     return {
         "task_id":          task_id,
-        "final_score":      score,
+        "final_score":      clamp(score),
         "total_reward":     clamp(round(sum(rewards), 1)),
         "avg_reward":       clamp(round(sum(rewards) / max(1, len(rewards)), 2)),
         "steps":            len(rewards),

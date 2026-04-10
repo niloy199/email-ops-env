@@ -98,8 +98,15 @@ class EmailOpsEnv:
         self._done = False
         self._scenario = self._cfg["scenario"]
         self._last_tool_result = None
-        self._cumulative_reward = 0.0
+        self._cumulative_reward = 0.01
         return self.state()
+    
+    MIN_SCORE    = 0.01
+    MAX_SCORE    = 0.99
+
+    def clamp(score: float) -> float:
+        """Clamp score to strictly open interval (0, 1)."""
+        return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
 
     def step(self, action: Action) -> StepResponse:
         if self._done:
@@ -112,12 +119,12 @@ class EmailOpsEnv:
         self._tick_sla()
         self._deliver_arrivals()
         reward, info = self._execute(action)
-        self._cumulative_reward += reward.value
+        self._cumulative_reward += clamp(reward.value)
 
         if not self._inbox and self._current is None:
             self._done = True
             bonus = self._completion_bonus()
-            reward.value = min(0.99, reward.value + bonus)
+            reward.value =clamp(min(0.99, reward.value + bonus))
             reward.breakdown["completion_bonus"] = bonus
             reward.message += f" | Complete! Bonus +{bonus:.2f}"
 
@@ -128,7 +135,7 @@ class EmailOpsEnv:
         obs.done = self._done
         info.update({
             "step": self._step,
-            "cumulative_reward": round(self._cumulative_reward, 4),
+            "cumulative_reward": clamp(round(self._cumulative_reward, 2)),
             "inbox_remaining": len(self._inbox),
             "processed": len(self._processed),
         })
@@ -266,7 +273,7 @@ class EmailOpsEnv:
             f"Tool {tool_name}: {'found' if result.found else 'not found'}. "
             f"{'Relevant' if correct_tool else 'Not the required tool'}."
         )
-        return Reward(value=score, message=msg, breakdown={"tool": score}), info
+        return Reward(value=clamp(score), message=msg, breakdown={"tool": score}), info
 
     def _reply(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
@@ -294,12 +301,12 @@ class EmailOpsEnv:
         kw_score = matched / max(1, len(kws))
         length = len(action.reply_text.split())
         length_bonus = 0.05 if 25 <= length <= 350 else 0.0
-        score = round(kw_score * R_QUALITY_REPLY_MAX + length_bonus, 4)
+        score = clamp(round(kw_score * R_QUALITY_REPLY_MAX + length_bonus, 2))
 
         email.agent_reply = action.reply_text
         self._finalize(email, ActionType.REPLY)
         return Reward(
-            value=score,
+            value=clamp(score),
             message=f"Reply quality: {kw_score:.0%} kw match ({matched}/{len(kws)})",
             breakdown={"reply_quality": score},
         ), info
@@ -313,7 +320,7 @@ class EmailOpsEnv:
         score = 0.18 if should_escalate else -0.08
         msg = "Correct escalation" if should_escalate else "Unnecessary escalation"
         self._finalize(email, ActionType.ESCALATE)
-        return Reward(value=score, message=msg), info
+        return Reward(value=clamp(score), message=msg), info
 
     def _route(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
@@ -351,22 +358,22 @@ class EmailOpsEnv:
 
         email.agent_route = action.route_to
         self._finalize(email, ActionType.ROUTE)
-        score = max(-0.99, min(0.99, total))
-        return Reward(value=round(score, 4), message=msg, breakdown=breakdown), info
+        score = max(0.01, min(0.99, total))
+        return Reward(value=clamp(round(score, 2)), message=msg, breakdown=breakdown), info
 
     def _schedule(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
         hours = action.followup_hours or 24
         score = 0.08 if email.requires_clarification or not email.requires_reply else 0.02
         self._finalize(email, ActionType.SCHEDULE_FOLLOWUP)
-        return Reward(value=score, message=f"Follow-up scheduled in {hours}h"), info
+        return Reward(value=clamp(score), message=f"Follow-up scheduled in {hours}h"), info
 
     def _clarify(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
         score = R_CLARIFICATION_OK if email.requires_clarification else -0.03
         msg = "Correct: clarification needed" if email.requires_clarification else "Unnecessary clarification"
         self._finalize(email, ActionType.REQUEST_CLARIFICATION)
-        return Reward(value=score, message=msg), info
+        return Reward(value=clamp(score), message=msg), info
 
     def _archive(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
@@ -378,7 +385,7 @@ class EmailOpsEnv:
         score = 0.08 if should_archive else -0.06
         msg = "Correct archive" if should_archive else "Premature archive (action required)"
         self._finalize(email, ActionType.ARCHIVE)
-        return Reward(value=score, message=msg), info
+        return Reward(value=clamp(score), message=msg), info
 
     def _flag_policy(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
@@ -387,7 +394,7 @@ class EmailOpsEnv:
         score = R_POLICY_CORRECT if has_policy else -0.05
         msg = "Correct policy flag" if has_policy else "False policy flag"
         self._finalize(email, ActionType.FLAG_POLICY_VIOLATION)
-        return Reward(value=score, message=msg), info
+        return Reward(value=clamp(score), message=msg), info
 
     def _delete(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
@@ -395,7 +402,7 @@ class EmailOpsEnv:
         score = 0.10 if is_spam else -0.15
         msg = "Correct delete (spam/phishing)" if is_spam else "Wrong delete (not spam)"
         self._finalize(email, ActionType.DELETE)
-        return Reward(value=score, message=msg), info
+        return Reward(value=clamp(score), message=msg), info
 
     # ── Helpers ────────────────────────────────────────────────────────────────
 

@@ -58,6 +58,10 @@ async def root():
     <p><span class="badge">hard</span> task_hard — Healthcare admin, 25 emails, adversarial + HIPAA</p>
     <p><a href="/docs">📖 Swagger UI</a></p></body></html>"""
 
+def clamp(score: float) -> float:
+    """Clamp score to strictly open interval (0, 1)."""
+    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
 
 @app.get("/health")
 async def health():
@@ -119,11 +123,11 @@ async def grade():
     s = env.state()
     task_id = s.task_id or "task_easy"
     raw_score, details = grade_episode(task_id, s.processed)
-    score = round(max(0.01, min(0.99, raw_score)), 2)
+    score = clamp(round(max(0.01, min(0.99, raw_score)), 2))
     return {
         "task_id": task_id,
-        "score":   round(score, 2),
-        "reward":  round(score, 2),
+        "score":   clamp(round(score, 2)),
+        "reward":  clamp(round(score, 2)),
         "done":    s.done,
         "emails_processed": len(s.processed),
         "details": details,
@@ -187,12 +191,12 @@ async def grade_by_task(task_id: str):
         _obs = step_result.observation
 
     raw_score, details = grade_episode(task_id, _obs.processed)
-    score = round(max(0.01, min(0.99, float(raw_score))), 2)
+    score = clamp(round(max(0.01, min(0.99, float(raw_score))), 2))
 
     return {
         "task_id": task_id,
-        "score":   score,
-        "reward":  score,
+        "score":   clamp(score),
+        "reward":  clamp(score),
         "done":    True,
         "emails_processed": len(_obs.processed),
         "details": details,
@@ -221,7 +225,7 @@ async def validate():
     try:
         from env.models import Action, ActionType
         r = env.step(Action(action_type=ActionType.SELECT_EMAIL))
-        results["step"] = {"ok": True, "reward": r.reward.value, "done": r.done}
+        results["step"] = {"ok": True, "reward": clamp(r.reward.value), "done": r.done}
     except Exception as e:
         results["step"] = {"ok": False, "error": str(e)}
 
@@ -230,7 +234,7 @@ async def validate():
         try:
             env.reset(task_id=tid, seed=42)
             score, _ = grade_episode(tid, [])
-            grader_results[tid] = {"ok": True, "empty_score": score}
+            grader_results[tid] = {"ok": True, "empty_score": clamp(score)}
         except Exception as e:
             grader_results[tid] = {"ok": False, "error": str(e)}
     results["graders"] = grader_results

@@ -85,7 +85,7 @@ def validate(env_url):
         try:
             requests.post(f"{env_url}/reset", json={"task_id": tid, "seed": 42})
             score = run_quick_episode(env_url, tid)
-            ok_all &= check(f"Grader {tid}: score in [0.0, 1.0]", 0.0 < score < 1.0, f"score={score:.4f}")
+            ok_all &= check(f"Grader {tid}: score in [0.0, 1.0]", 0.0 < score < 1.0, f"score={score:.2f}")
         except Exception as e:
             ok_all &= check(f"Grader {tid}", False, str(e))
 

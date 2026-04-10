@@ -84,7 +84,7 @@ class BaseGrader:
             return 0.5
         matched = sum(1 for kw in kws if kw.lower() in e.agent_reply.lower())
         score = max(0.05, matched / len(kws))
-        return round(score, 4)
+        return clamp(round(score, 2))
 
     def _adversarial_score(self, e: Email) -> float:
         if not e.is_adversarial:
@@ -132,7 +132,7 @@ class EasyTaskGrader(BaseGrader):
             "avg_tool_use": round(avg_tool, 4),
             "adversarial_handling": round(avg_adversarial, 4),
             "coverage": round(coverage, 4),
-            "final_score": round(score, 2),
+            "final_score": clamp(round(score, 2)),
         }
 
 
@@ -148,7 +148,7 @@ class MediumTaskGrader(BaseGrader):
         replies = [self._reply_score(e) for e in processed]
         tools = [self._tool_score(e) for e in processed]
         adversarial = [self._adversarial_score(e) for e in processed if e.is_adversarial] or [0.5]
-        coverage = min(0.999, len(processed) / 15)
+        coverage = min(0.99, len(processed) / 15)
 
         critical = [e for e in processed if e.true_urgency == Urgency.CRITICAL]
         critical_score = sum(
@@ -208,7 +208,7 @@ class HardTaskGrader(BaseGrader):
         replies = [self._reply_score(e) for e in processed]
         tools = [self._tool_score(e) for e in processed]
         adversarial = [self._adversarial_score(e) for e in processed if e.is_adversarial] or [0.5]
-        coverage = min(0.999, len(processed) / 25)
+        coverage = min(0.99, len(processed) / 25)
 
         hs = [e for e in processed if e.id in self.HIGH_STAKES_IDS]
         hs_score = 0.05
