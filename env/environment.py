@@ -60,6 +60,11 @@ R_CLARIFICATION_OK   = 0.08
 R_COMPLETION_BONUS   = 0.40
 
 
+def clamp(score: float) -> float:
+    """Clamp score to strictly open interval (0, 1)."""
+    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
+
 class EmailOpsEnv:
     def __init__(self):
         self._task_id = "task_easy"

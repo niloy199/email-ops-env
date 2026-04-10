@@ -36,6 +36,10 @@ def _make_client():
 
 client = _make_client()
 
+def clamp(score: float) -> float:
+    """Clamp score to strictly open interval (0, 1)."""
+    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
 # ── Env Client ─────────────────────────────────────────────────────────────────
 
 def env_reset(task_id, seed=SEED):
@@ -284,9 +288,7 @@ def log_end(task_id: str, score: float, emails_processed: int, details: Dict):
 
 # ── Main Run Loop ───────────────────────────────────────────────────────────────
 
-def clamp(score: float) -> float:
-    """Clamp score to strictly open interval (0, 1)."""
-    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
 
 def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
     max_steps = {"task_easy": 60, "task_medium": 150, "task_hard": 300}[task_id]
