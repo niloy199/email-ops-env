@@ -267,7 +267,7 @@ def log_start(task_id: str):
 
 def log_step(step_n: int, action_type: str, reward: float, done: bool, error: Optional[str] = None):
     done_str  = "true" if done else "false"
-    error_str = error if error else "null"
+    error_str = error.replace("\n", " ").replace("\r", " ")[:120] if error else "null"
     print(f"[STEP] step={step_n} action={action_type} reward={reward:.2f} done={done_str} error={error_str}", flush=True)
 
 def log_end(success: bool, steps: int, rewards: List[float]):
