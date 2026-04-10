@@ -15,6 +15,15 @@ from env.models import (
 from scenarios.emails import SCENARIO_EMAILS, SCENARIO_NAMES
 from tools.crm import lookup_customer, lookup_ticket, lookup_order
 
+MIN_SCORE = 0.01
+MAX_SCORE = 0.99
+
+
+def clamp(score: float) -> float:
+    """Clamp score to strictly open interval (0, 1)."""
+    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+
+
 TASK_CONFIG: Dict[str, Dict] = {
     "task_easy": {
         "name": "Startup Support Inbox",
@@ -60,14 +69,6 @@ R_CLARIFICATION_OK   = 0.08
 R_COMPLETION_BONUS   = 0.40
 
 
-MIN_SCORE    = 0.01
-MAX_SCORE    = 0.99
-
-def clamp(score: float) -> float:
-    """Clamp score to strictly open interval (0, 1)."""
-    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
-
-
 class EmailOpsEnv:
     def __init__(self):
         self._task_id = "task_easy"
@@ -84,8 +85,6 @@ class EmailOpsEnv:
         self._cfg: Dict = {}
         self._cumulative_reward = 0.0
 
-    # ── OpenEnv Interface ──────────────────────────────────────────────────────
-
     def reset(self, task_id: str = "task_easy", seed: Optional[int] = None) -> Observation:
         if task_id not in TASK_CONFIG:
             raise ValueError(f"Unknown task: {task_id}")
@@ -97,7 +96,6 @@ class EmailOpsEnv:
 
         raw = SCENARIO_EMAILS[task_id]
         self._all_emails = [copy.deepcopy(e) for e in raw]
-        # Start with emails that arrive at step 0
         self._inbox = [e for e in self._all_emails if e.arrival_step == 0]
         self._processed = []
         self._current = None
@@ -108,9 +106,6 @@ class EmailOpsEnv:
         self._last_tool_result = None
         self._cumulative_reward = 0.01
         return self.state()
-    
-
-
 
     def step(self, action: Action) -> StepResponse:
         if self._done:
@@ -128,7 +123,7 @@ class EmailOpsEnv:
         if not self._inbox and self._current is None:
             self._done = True
             bonus = self._completion_bonus()
-            reward.value =clamp(min(0.99, reward.value + bonus))
+            reward.value = clamp(min(0.99, reward.value + bonus))
             reward.breakdown["completion_bonus"] = bonus
             reward.message += f" | Complete! Bonus +{bonus:.2f}"
 
@@ -171,10 +166,7 @@ class EmailOpsEnv:
             ),
         )
 
-    # ── SLA + Dynamic Arrivals ─────────────────────────────────────────────────
-
     def _tick_sla(self):
-        """Decrement SLA timers each step for unprocessed emails."""
         for email in self._inbox:
             if email.status in (EmailStatus.PENDING, EmailStatus.SELECTED):
                 email.sla_remaining = max(0, email.sla_remaining - 1)
@@ -183,12 +175,9 @@ class EmailOpsEnv:
                     email.status = EmailStatus.BREACHED
 
     def _deliver_arrivals(self):
-        """Deliver emails scheduled to arrive at this step."""
         for email in self._all_emails:
             if email.arrival_step == self._step and email not in self._inbox and email not in self._processed:
                 self._inbox.append(email)
-
-    # ── Action Dispatch ────────────────────────────────────────────────────────
 
     def _execute(self, action: Action) -> Tuple[Reward, Dict]:
         info: Dict[str, Any] = {"action": action.action_type}
@@ -222,7 +211,6 @@ class EmailOpsEnv:
         if action.email_id:
             email = next((e for e in self._inbox if e.id == action.email_id), None)
         else:
-            # Auto-select highest urgency email
             priority = {Urgency.CRITICAL: 4, Urgency.HIGH: 3, Urgency.MEDIUM: 2, Urgency.LOW: 1}
             pending = [e for e in self._inbox if e.status in (EmailStatus.PENDING, EmailStatus.BREACHED)]
             if not pending:
@@ -247,11 +235,7 @@ class EmailOpsEnv:
         email.status = EmailStatus.WORKING
         if action.intent:
             email.agent_intent = action.intent
-            # Partial reward for extraction step
-            return Reward(
-                value=R_EXTRACT_INTENT,
-                message=f"Intent extracted: {action.intent}",
-            ), info
+            return Reward(value=R_EXTRACT_INTENT, message=f"Intent extracted: {action.intent}"), info
         return Reward(value=0.01, message="Intent step taken (no intent provided)"), info
 
     def _tool_lookup(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
@@ -270,7 +254,6 @@ class EmailOpsEnv:
         info["tool"] = tool_name
         info["found"] = result.found
 
-        # Score: was this the right tool for this email?
         correct_tool = email.required_tool == tool_name if email.required_tool else False
         score = R_TOOL_USED_CORRECT if correct_tool else R_TOOL_USED_WRONG
         msg = (
@@ -285,7 +268,6 @@ class EmailOpsEnv:
             self._finalize(email, ActionType.REPLY)
             return Reward(value=-0.15, message="Reply too short"), info
 
-        # Check policy: NO_AUTO_REPLY
         if PolicyRule.NO_AUTO_REPLY in email.policy_rules:
             self._finalize(email, ActionType.REPLY)
             return Reward(
@@ -298,7 +280,6 @@ class EmailOpsEnv:
             self._finalize(email, ActionType.REPLY)
             return Reward(value=-0.05, message="Unnecessary reply"), info
 
-        # Keyword quality score
         reply_lower = action.reply_text.lower()
         kws = email.expected_reply_keywords
         matched = sum(1 for kw in kws if kw.lower() in reply_lower) if kws else 0
@@ -331,7 +312,6 @@ class EmailOpsEnv:
         breakdown = {}
         total = 0.0
 
-        # Routing accuracy
         if action.route_to == email.true_route:
             breakdown["routing"] = R_CORRECT_ROUTE
             msg = f"Correct route → {action.route_to}"
@@ -340,7 +320,6 @@ class EmailOpsEnv:
             msg = f"Wrong route → {action.route_to} (expected {email.true_route})"
         total += breakdown["routing"]
 
-        # Urgency accuracy
         if action.urgency:
             email.agent_urgency = action.urgency
             if action.urgency == email.true_urgency:
@@ -351,7 +330,6 @@ class EmailOpsEnv:
                 msg += f" | Urgency wrong (got {action.urgency}, expected {email.true_urgency})"
             total += breakdown["urgency"]
 
-        # Policy: MUST_ESCALATE but routed to non-escalation dept
         if PolicyRule.MUST_ESCALATE in email.policy_rules and action.route_to not in (
             RouteDept.LEGAL, RouteDept.COMPLIANCE, RouteDept.EXECUTIVE
         ):
@@ -407,8 +385,6 @@ class EmailOpsEnv:
         msg = "Correct delete (spam/phishing)" if is_spam else "Wrong delete (not spam)"
         self._finalize(email, ActionType.DELETE)
         return Reward(value=clamp(score), message=msg), info
-
-    # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _finalize(self, email: Email, action: ActionType):
         email.agent_action = action

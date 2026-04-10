@@ -123,7 +123,6 @@ async def list_tools():
 
 @app.get("/grade")
 async def grade():
-    """Grade current episode — returns score and reward strictly in (0.0, 1.0)."""
     s = env.state()
     task_id = s.task_id or "task_easy"
     raw_score, details = grade_episode(task_id, s.processed)
@@ -140,7 +139,6 @@ async def grade():
 
 @app.get("/grade/{task_id}")
 async def grade_by_task(task_id: str):
-    """Grade a specific task — validator calls GET /grade/{task_id}."""
     aliases = {
         "task_1": "task_easy",  "1": "task_easy",
         "task_2": "task_medium","2": "task_medium",
