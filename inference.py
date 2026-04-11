@@ -7,9 +7,6 @@ from __future__ import annotations
 import os, sys, json, time, traceback, requests
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv(".env.txt")
 
 # ── Environment variables ──────────────────────────────────────────────────────
 API_BASE_URL     = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
@@ -36,7 +33,7 @@ ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://niloy456-email-ops-env.hf
 ENV_NAME     = "email-ops-env"
 SEED         = 2024
 TASKS        = ["task_easy", "task_medium", "task_hard"]
-MIN_SCORE    = 0.1
+MIN_SCORE    = 0.01
 MAX_SCORE    = 0.99
 
 # ── OpenAI client ─────────────────────────────────────────────────────────────
@@ -270,17 +267,20 @@ def rule_agent(obs: Dict) -> Dict:
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 def log_start(task_id: str):
-    print(f"[START] task={task_id} env={ENV_NAME} model={MODEL_NAME}", flush=True)
+    short_task  = task_id.replace("task_", "")        # task_easy  -> easy
+    short_model = MODEL_NAME.split("/")[-1]            # org/Model  -> Model
+    print(f"[START] task={short_task} env=email-ops model={short_model}", flush=True)
 
-def log_step(step_n: int, action_type: str, reward: float, done: bool, error: Optional[str] = None):
-    done_str  = "true" if done else "false"
-    error_str = error.replace("\n", " ").replace("\r", " ")[:120] if error else "null"
-    print(f"[STEP] step={step_n} action={action_type} reward={reward:.2f} done={done_str} error={error_str}", flush=True)
+def log_step(step_n: int, action: Dict, reward: float, done: bool, error: Optional[str] = None):
+    done_str   = "true" if done else "false"
+    error_str  = error.replace("\n", " ").replace("\r", " ")[:120] if error else "null"
+    action_str = json.dumps(action, separators=(",", ":"))
+    print(f"[STEP] step={step_n} action={action_str} reward={reward:.2f} done={done_str} error={error_str}", flush=True)
 
-def log_end(success: bool, steps: int, rewards: List[float]):
+def log_end(success: bool, steps: int, score: float, rewards: List[float]):
     success_str = "true" if success else "false"
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={success_str} steps={steps} rewards={rewards_str}", flush=True)
+    print(f"[END] success={success_str} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
 
 # ── Score clamp ────────────────────────────────────────────────────────────────
 def clamp(score: float) -> float:
@@ -341,17 +341,17 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
             # ── Env step ──────────────────────────────────────────────────────
             try:
                 result = env_step(action)
-                rv     = clamp(result["reward"]["value"])
+                rv     = clamp(result["reward"]["value"])   # clamped: 0.01–0.99
                 done   = bool(result.get("done", False))
-                rewards.append(rv)
+                rewards.append(rv)                          # list holds clamped values only
                 obs    = result["observation"]
-                log_step(step_n + 1, action.get("action_type", "unknown"), rv, done, None)
+                log_step(step_n + 1, action, rv, done, None)
                 if obs.get("done"):
                     break
             except Exception as ex:
                 env_error = str(ex)
                 rewards.append(MIN_SCORE)
-                log_step(step_n + 1, action.get("action_type", "unknown"), MIN_SCORE, True, env_error)
+                log_step(step_n + 1, action, MIN_SCORE, True, env_error)
                 break
 
         # ── Grade ─────────────────────────────────────────────────────────────
@@ -368,9 +368,10 @@ def run_task(task_id: str, use_llm: bool = True) -> Dict[str, Any]:
         details = {"error": str(ex)}
 
     finally:
-        # Always emitted — rewards never empty (parsers expect at least one value)
+        # Always emitted — even on exception — with actual rewards collected so far
+        # Ensure rewards list is never empty (parsers expect at least one value)
         reward_list = rewards if rewards else [MIN_SCORE]
-        log_end(score > MIN_SCORE, len(rewards), reward_list)
+        log_end(score > MIN_SCORE, len(rewards), score, reward_list)
 
     return {
         "task_id":      task_id,
