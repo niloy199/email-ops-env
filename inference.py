@@ -36,7 +36,7 @@ ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "https://niloy456-email-ops-env.hf
 ENV_NAME     = "email-ops-env"
 SEED         = 2024
 TASKS        = ["task_easy", "task_medium", "task_hard"]
-MIN_SCORE    = 0.01
+MIN_SCORE    = 0.1
 MAX_SCORE    = 0.99
 
 # ── OpenAI client ─────────────────────────────────────────────────────────────

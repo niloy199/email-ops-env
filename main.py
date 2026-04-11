@@ -58,7 +58,7 @@ async def root():
     <p><span class="badge">hard</span> task_hard — Healthcare admin, 25 emails, adversarial + HIPAA</p>
     <p><a href="/docs">📖 Swagger UI</a></p></body></html>"""
 
-MIN_SCORE = 0.01
+MIN_SCORE = 0.1
 MAX_SCORE = 0.99
 
 
@@ -126,7 +126,7 @@ async def grade():
     s = env.state()
     task_id = s.task_id or "task_easy"
     raw_score, details = grade_episode(task_id, s.processed)
-    score = clamp(round(max(0.01, min(0.99, raw_score)), 2))
+    score = clamp(round(max(0.1, min(0.99, raw_score)), 2))
     return {
         "task_id": task_id,
         "score":   clamp(round(score, 2)),
@@ -187,7 +187,7 @@ async def grade_by_task(task_id: str):
         _obs = step_result.observation
 
     raw_score, details = grade_episode(task_id, _obs.processed)
-    score = clamp(round(max(0.01, min(0.99, float(raw_score))), 2))
+    score = clamp(round(max(0.1, min(0.99, float(raw_score))), 2))
 
     return {
         "task_id": task_id,

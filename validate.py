@@ -32,7 +32,7 @@ def run_quick_episode(env_url, task_id):
                 action = {"action_type": "route", "route_to": "support", "urgency": "medium"}
         r = requests.post(f"{env_url}/step", json=action, timeout=10).json()
         if r.get("done"): break
-    return requests.get(f"{env_url}/grade", timeout=10).json().get("score", 0.01)
+    return requests.get(f"{env_url}/grade", timeout=10).json().get("score", 0.1)
 
 def validate(env_url):
     ok_all = True

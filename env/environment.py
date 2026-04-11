@@ -15,7 +15,7 @@ from env.models import (
 from scenarios.emails import SCENARIO_EMAILS, SCENARIO_NAMES
 from tools.crm import lookup_customer, lookup_ticket, lookup_order
 
-MIN_SCORE = 0.01
+MIN_SCORE = 0.1
 MAX_SCORE = 0.99
 
 
@@ -63,7 +63,7 @@ R_QUALITY_REPLY_MAX  = 0.25
 R_TOOL_USED_CORRECT  = 0.10
 R_TOOL_USED_WRONG    = -0.03
 R_POLICY_CORRECT     = 0.15
-R_SELECT             = 0.01
+R_SELECT             = 0.1
 R_EXTRACT_INTENT     = 0.05
 R_CLARIFICATION_OK   = 0.08
 R_COMPLETION_BONUS   = 0.40
@@ -104,14 +104,14 @@ class EmailOpsEnv:
         self._done = False
         self._scenario = self._cfg["scenario"]
         self._last_tool_result = None
-        self._cumulative_reward = 0.01
+        self._cumulative_reward = 0.1
         return self.state()
 
     def step(self, action: Action) -> StepResponse:
         if self._done:
             return StepResponse(
                 observation=self.state(),
-                reward=Reward(value=0.01, message="Episode done"),
+                reward=Reward(value=0.1, message="Episode done"),
                 done=True, info={"error": "episode_done"},
             )
         self._step += 1
@@ -236,7 +236,7 @@ class EmailOpsEnv:
         if action.intent:
             email.agent_intent = action.intent
             return Reward(value=R_EXTRACT_INTENT, message=f"Intent extracted: {action.intent}"), info
-        return Reward(value=0.01, message="Intent step taken (no intent provided)"), info
+        return Reward(value=0.1, message="Intent step taken (no intent provided)"), info
 
     def _tool_lookup(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
         email = self._current
@@ -340,7 +340,7 @@ class EmailOpsEnv:
 
         email.agent_route = action.route_to
         self._finalize(email, ActionType.ROUTE)
-        score = max(0.01, min(0.99, total))
+        score = max(0.1, min(0.99, total))
         return Reward(value=clamp(round(score, 2)), message=msg, breakdown=breakdown), info
 
     def _schedule(self, action: Action, info: Dict) -> Tuple[Reward, Dict]:
@@ -398,10 +398,10 @@ class EmailOpsEnv:
 
     def _completion_bonus(self) -> float:
         if not self._processed:
-            return 0.01
+            return 0.1
         n = len(self._processed)
-        correct_route   = max(0.01, min(0.99, sum(1 for e in self._processed if e.agent_route == e.true_route) / n))
-        tool_compliance = max(0.01, min(0.99, sum(
+        correct_route   = max(0.1, min(0.99, sum(1 for e in self._processed if e.agent_route == e.true_route) / n))
+        tool_compliance = max(0.1, min(0.99, sum(
             1 for e in self._processed
             if e.requires_tool == e.tool_was_called
         ) / n))
@@ -409,7 +409,7 @@ class EmailOpsEnv:
             1 for e in self._processed
             if not (PolicyRule.NO_AUTO_REPLY in e.policy_rules and e.agent_action == ActionType.REPLY)
         ) / n
-        coverage = max(0.01, min(0.99, n / len(self._all_emails)))
+        coverage = max(0.1, min(0.99, n / len(self._all_emails)))
         bonus = R_COMPLETION_BONUS * (
             correct_route   * 0.35 +
             tool_compliance * 0.25 +

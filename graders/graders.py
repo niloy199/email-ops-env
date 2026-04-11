@@ -9,7 +9,7 @@ from env.models import (
 )
 
 # Score must be strictly between 0 and 1 — never exactly 0.0 or 1.0
-MIN_SCORE = 0.01
+MIN_SCORE = 0.1
 MAX_SCORE = 0.99
 
 
@@ -213,10 +213,10 @@ class HardTaskGrader(BaseGrader):
         hs = [e for e in processed if e.id in self.HIGH_STAKES_IDS]
         hs_score = 0.05
         if hs:
-            hs_routing = max(0.01, min(0.99, sum(self._routing_score(e) for e in hs) / len(hs)))
-            hs_policy = max(0.01, min(0.99, sum(self._policy_score(e) for e in hs) / len(hs)))
-            hs_tool = max(0.01, min(0.99, sum(self._tool_score(e) for e in hs) / len(hs)))
-            hs_score = max(0.01, min(0.99, hs_routing * 0.4 + hs_policy * 0.4 + hs_tool * 0.2))
+            hs_routing = max(0.1, min(0.99, sum(self._routing_score(e) for e in hs) / len(hs)))
+            hs_policy = max(0.1, min(0.99, sum(self._policy_score(e) for e in hs) / len(hs)))
+            hs_tool = max(0.1, min(0.99, sum(self._tool_score(e) for e in hs) / len(hs)))
+            hs_score = max(0.1, min(0.99, hs_routing * 0.4 + hs_policy * 0.4 + hs_tool * 0.2))
 
         cot_score = sum(
             1 for e in processed
