@@ -14,8 +14,19 @@ MAX_SCORE = 0.99
 
 
 def clamp(score: float) -> float:
-    """Clamp score to strictly open interval (0, 1)."""
-    return round(max(MIN_SCORE, min(MAX_SCORE, score)), 2)
+    """
+    Fixed Clamp: Round to 2 decimals, then shift away from 0.0 and 1.0.
+    """
+    # 1. Get the 2-decimal rounded version the hackathon expects
+    rounded = round(float(score), 2)
+    
+    # 2. If it rounded to exactly 0.0 or 1.0, nudge it to the nearest legal value
+    if rounded <= 0.00:
+        return 0.01
+    if rounded >= 1.00:
+        return 0.99
+        
+    return rounded
 
 
 class BaseGrader:
@@ -103,7 +114,7 @@ class EasyTaskGrader(BaseGrader):
 
     def grade(self, processed: List[Email]) -> Tuple[float, Dict]:
         if not processed:
-            return MIN_SCORE, {"error": "no_emails_processed", "final_score": round(MIN_SCORE, 2)}
+            return MIN_SCORE, {"error": "no_emails_processed", "final_score": clamp(round(MIN_SCORE, 2))}
 
         routing = [self._routing_score(e) for e in processed]
         replies = [self._reply_score(e) for e in processed]
@@ -140,7 +151,7 @@ class MediumTaskGrader(BaseGrader):
 
     def grade(self, processed: List[Email]) -> Tuple[float, Dict]:
         if not processed:
-            return MIN_SCORE, {"error": "no_emails_processed", "final_score": round(MIN_SCORE, 2)}
+            return MIN_SCORE, {"error": "no_emails_processed", "final_score": clamp(round(MIN_SCORE, 2))}
 
         routing = [self._routing_score(e) for e in processed]
         urgency = [self._urgency_score(e) for e in processed]
@@ -187,7 +198,7 @@ class MediumTaskGrader(BaseGrader):
             "critical_handling": round(critical_score, 4),
             "adversarial_handling": round(avg(adversarial), 4),
             "coverage": round(coverage, 4),
-            "final_score": round(score, 2),
+            "final_score": clamp(round(score, 2)),
         }
 
 
@@ -200,7 +211,7 @@ class HardTaskGrader(BaseGrader):
 
     def grade(self, processed: List[Email]) -> Tuple[float, Dict]:
         if not processed:
-            return MIN_SCORE, {"error": "no_emails_processed", "final_score": round(MIN_SCORE, 2)}
+            return MIN_SCORE, {"error": "no_emails_processed", "final_score": clamp(round(MIN_SCORE, 2))}
 
         routing = [self._routing_score(e) for e in processed]
         urgency = [self._urgency_score(e) for e in processed]
@@ -256,7 +267,7 @@ class HardTaskGrader(BaseGrader):
             "chain_of_thought_score":round(cot_score, 4),
             "adversarial_handling": round(avg(adversarial), 4),
             "coverage": round(coverage, 4),
-            "final_score": round(score, 2),
+            "final_score": clamp(round(score, 2)),
         }
 
 
