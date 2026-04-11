@@ -5,7 +5,7 @@ Follows OpenEnv hackathon guidelines exactly:
   [STEP]  step=<n> action=<a> reward=<0.00> done=<true|false> error=<msg|null>
   [END]   success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 """
-from _future_ import annotations
+#from __future___ import annotations
 import os, sys, json, time, requests
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
@@ -316,5 +316,5 @@ def main() -> None:
         json.dump(output, f, indent=2)
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
